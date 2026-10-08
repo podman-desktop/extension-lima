@@ -1,0 +1,96 @@
+{
+  "name": "lima",
+  "displayName": "Lima",
+  "description": "Integration for Lima: Linux Machines (typically macOS)",
+  "version": "1.31.0-next",
+  "icon": "icon.png",
+  "publisher": "podman-desktop",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=24.0.0",
+    "podman-desktop": ">=1.29.1"
+  },
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Lima",
+      "properties": {
+        "lima.binary.path": {
+          "type": "string",
+          "format": "file",
+          "default": "",
+          "description": "Custom path to limactl binary (Default is blank)"
+        },
+        "lima.home": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Lima home directory. See [documentation](https://lima-vm.io/docs/dev/internals/#lima-home-directory-lima_home)"
+        },
+        "lima.type": {
+          "type": "string",
+          "default": "podman",
+          "enum": [
+            "podman",
+            "docker",
+            "kubernetes"
+          ],
+          "description": "Engine type (requires restart of extension)"
+        },
+        "lima.name": {
+          "type": "string",
+          "default": "",
+          "description": "Instance name (default is same name as type)"
+        },
+        "lima.socket": {
+          "type": "string",
+          "default": "",
+          "description": "Socket name (default is equal to type.sock)"
+        }
+      }
+    },
+    "menus": {
+      "dashboard/image": [
+        {
+          "command": "lima.image.move",
+          "title": "Push image to Lima cluster",
+          "icon": "fas fa-circle-arrow-up"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "lima.image.move",
+        "title": "Lima: Move image to cluster..."
+      }
+    ]
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:build": "pnpm build && node --test tests/build.test.cjs",
+    "watch": "vite build --watch"
+  },
+  "dependencies": {
+    "tmp-promise": "^3.0.3"
+  },
+  "devDependencies": {
+    "@podman-desktop/api": "1.29.1",
+    "@types/node": "^24",
+    "@vitest/coverage-v8": "5.0.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3"
+  },
+  "files": [
+    "dist",
+    "icon.png",
+    "logo-dark.png",
+    "logo-light.png",
+    "LICENSE",
+    "README.md"
+  ],
+  "packageManager": "pnpm@12.10.1+sha512.ba40a37eb1a370d60fea8c4cf1d364c13bcccef518e98ad2bcee954f539d38da37458e58261a3fa55e06523450ea0ffff9f497b135be41f2c15c1642bacace6c"
+}

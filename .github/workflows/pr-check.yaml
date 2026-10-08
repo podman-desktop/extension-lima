@@ -1,0 +1,125 @@
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: pr-check
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch, tag, or SHA to test
+        required: false
+        type: string
+    outputs:
+      artifact-id:
+        description: OCI image artifact
+        value: ${{ jobs.extension-image.outputs.artifact-id }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Tests / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+    env:
+      CI: true
+    steps:
+      # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Install pnpm
+        # v6.1.0
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          run_install: false
+
+      # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run typecheck
+        run: pnpm typecheck
+
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
+
+      - name: Run build and bundle tests
+        run: pnpm test:build
+
+      - name: Upload coverage
+        if: ${{ always() }}
+        # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  extension-image:
+    name: Build and test OCI image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact-id: ${{ steps.build.outputs.artifact-id }}
+    steps:
+      - name: Build OCI
+        id: build
+        # yamllint disable-line rule:line-length
+        uses: podman-desktop/gh-extensions-actions/.github/actions/oci-build@3c89b3ea20c3262cb0f05894d0da4354d8c269a6  # v0.9.0
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          containerfile: Containerfile
+
+      # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+
+      - name: Test packaged extension
+        shell: bash
+        run: |
+          # Test the archive that the shared build uploads.
+          image=$(podman load --input oci-image.tar |
+            awk -F': ' '/Loaded image:/ {print $2}' | tail -n1)
+          test -n "$image"
+          payload="$RUNNER_TEMP/lima-extension"
+          mkdir -p "$payload"
+
+          # Export the payload without a process in the scratch image.
+          container_id=$(podman create --pull=never "$image" /unused)
+          podman export --output "$payload/image.tar" "$container_id"
+          podman rm "$container_id"
+          tar -xf "$payload/image.tar" -C "$payload"
+          LIMA_EXTENSION_ROOT="$payload/extension" \
+            node --test tests/build.test.cjs

@@ -1,0 +1,169 @@
+#
+# Copyright (C) 2026 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: Publish release image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, for example 1.31.0
+        required: true
+        type: string
+      branch:
+        description: Branch to release
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag release and prepare next version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      github-tag: ${{ steps.version.outputs.github-tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.branch }}
+          persist-credentials: false
+
+      # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+
+      - name: Validate release version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const version = process.env.VERSION;
+
+          assert.match(version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/,
+            'Use a stable release version, for example 1.31.0');
+
+          const [major, minor] = version.split('.');
+          const nextVersion = `${major}.${BigInt(minor) + 1n}.0`;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, [
+            `version=${version}`,
+            `github-tag=v${version}`,
+            `next-version=${nextVersion}-next`,
+            `bump-branch=bump-to-${nextVersion}`,
+            '',
+          ].join('\n'));
+          NODE
+
+      - name: Tag version and draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.github-tag }}
+        run: |
+          git config --local user.name "$GITHUB_ACTOR"
+          git config --local user.email \
+            "$GITHUB_ACTOR_ID+$GITHUB_ACTOR@users.noreply.github.com"
+
+          npm pkg set "version=$VERSION"
+          git add package.json
+          git commit -s -m "chore(release): tag $TAG"
+          git tag "$TAG"
+          remote="https://x-access-token:$GH_TOKEN@github.com"
+          git push "$remote/$GITHUB_REPOSITORY.git" "$TAG"
+          gh release create "$TAG" --draft --verify-tag --generate-notes
+
+      - name: Create next-version pull request
+        if: ${{ inputs.branch == 'main' }}
+        env:
+          # The bot token lets the bump PR trigger CI checks.
+          GH_TOKEN: ${{ secrets.PODMAN_DESKTOP_BOT_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NEXT_VERSION: ${{ steps.version.outputs.next-version }}
+          BUMP_BRANCH: ${{ steps.version.outputs.bump-branch }}
+        run: |
+          test -n "$GH_TOKEN"
+          git switch -c "$BUMP_BRANCH"
+          npm pkg set "version=$NEXT_VERSION"
+          git add package.json
+          git commit -s --amend -m "chore(release): bump to $NEXT_VERSION"
+          remote="https://x-access-token:$GH_TOKEN@github.com"
+          git push "$remote/$GITHUB_REPOSITORY.git" "$BUMP_BRANCH"
+
+          pull_request_url=$(gh pr create --base main --head "$BUMP_BRANCH" \
+            --title "chore(release): bump to $NEXT_VERSION" \
+            --body "Prepare the next development version after $VERSION.")
+          gh pr merge "$pull_request_url" --auto --rebase
+
+  checks:
+    needs: tag
+    uses: ./.github/workflows/pr-check.yaml
+    with:
+      ref: ${{ needs.tag.outputs.github-tag }}
+
+  publish:
+    needs: [tag, checks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Publish OCI
+        # yamllint disable-line rule:line-length
+        uses: podman-desktop/gh-extensions-actions/.github/actions/oci-publish@3c89b3ea20c3262cb0f05894d0da4354d8c269a6  # v0.9.0
+        with:
+          run-id: ${{ github.run_id }}
+          artifact-id: ${{ needs.checks.outputs.artifact-id }}
+          github-token: ${{ github.token }}
+          registry-username: ${{ github.repository_owner }}
+          registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: >-
+            ${{ github.repository_owner }}/podman-desktop-extension-lima
+          tags: ${{ needs.tag.outputs.version }} latest
+
+  release:
+    name: Publish GitHub release
+    needs: [tag, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.tag.outputs.github-tag }}
+        run: gh release edit "$TAG" --draft=false --repo "$GITHUB_REPOSITORY"
