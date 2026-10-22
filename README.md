@@ -3,6 +3,10 @@
 This standalone extension connects Podman Desktop to existing Lima instances for Podman, Docker, or Kubernetes.
 It also transfers container images to a Lima Kubernetes instance.
 
+## Documentation and usage
+
+For usage and documentation, visit the Lima documentation located on the [Podman Desktop website](https://podman-desktop.io/docs/lima).
+
 
 ## Development
 
