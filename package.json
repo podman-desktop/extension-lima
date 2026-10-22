@@ -2,13 +2,13 @@
   "name": "lima",
   "displayName": "Lima",
   "description": "Integration for Lima: Linux Machines (typically macOS)",
-  "version": "1.31.0-next",
+  "version": "0.1.0-next",
   "icon": "icon.png",
   "publisher": "podman-desktop",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=24.0.0",
-    "podman-desktop": ">=1.29.1"
+    "podman-desktop": ">=1.31.0"
   },
   "main": "./dist/extension.js",
   "contributes": {

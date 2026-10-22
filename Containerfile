@@ -36,7 +36,7 @@ LABEL org.opencontainers.image.title="Lima" \
       org.opencontainers.image.description="Lima extension for Podman Desktop" \
       org.opencontainers.image.vendor="podman-desktop" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      io.podman-desktop.api.version=">=1.29.1"
+      io.podman-desktop.api.version=">=1.31.0"
 
 COPY --from=builder /opt/app-root/src/dist/ /extension/dist/
 COPY package.json icon.png logo-dark.png logo-light.png LICENSE README.md /extension/
