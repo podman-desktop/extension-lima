@@ -77,7 +77,7 @@
     "tmp-promise": "^3.0.3"
   },
   "devDependencies": {
-    "@podman-desktop/api": "1.29.1",
+    "@podman-desktop/api": "1.30.5",
     "@types/node": "^24",
     "@vitest/coverage-v8": "5.0.3",
     "typescript": "5.9.3",
