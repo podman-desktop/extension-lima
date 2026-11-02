@@ -171,8 +171,8 @@ importers:
         version: 3.0.3
     devDependencies:
       '@podman-desktop/api':
-        specifier: 1.29.1
-        version: 1.29.1
+        specifier: 1.30.5
+        version: 1.30.5
       '@types/node':
         specifier: ^24
         version: 24.19.1
@@ -225,8 +225,8 @@ packages:
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
 
-  '@podman-desktop/api@1.29.1':
-    resolution: {integrity: sha512-UtCY2t5hVLz5pHXSV5DmQESPLUqSxDgKhJfqlQ4GO7L0x/fQdaX22KGbuzOEUSs1KzB0nwWNB3ylaTcE/OBdZA==}
+  '@podman-desktop/api@1.30.5':
+    resolution: {integrity: sha512-diE/1A2XRLjBzGnfMBRikxDeuNEEOyE/NlRODDoiBH85tlEs8+CspjEkmoaam7pzS82ej36iV1WhAd07ixU4Rw==}
 
   '@rolldown/binding-android-arm-eabi@1.2.16':
     resolution: {integrity: sha512-ia3DwAs0OsMGS7+IConptSiyk9pEXkOx/AbJ2n/lAGxH3QkWQus1t8d7gnAT38FCU2sQu8lUbeR6AiZFv4JxaA==}
@@ -672,7 +672,7 @@ snapshots:
 
   '@oxc-project/types@0.156.0': {}
 
-  '@podman-desktop/api@1.29.1': {}
+  '@podman-desktop/api@1.30.5': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.16':
     optional: true
